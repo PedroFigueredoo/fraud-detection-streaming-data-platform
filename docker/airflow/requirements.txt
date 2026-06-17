@@ -1,0 +1,11 @@
+duckdb
+pandas
+pyarrow
+kaggle
+kafka-python
+scikit-learn
+pyspark==3.5.1
+joblib
+matplotlib
+dbt-duckdb
+pytest

@@ -1,0 +1,53 @@
+# Obsidian local config
+.obsidian/
+
+# Environment variables / secrets
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE / Editor
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Airflow logs
+logs/*
+!logs/.gitkeep
+
+# Local data
+data/raw/*
+data/processed/*
+data/sample/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/sample/.gitkeep
+
+# DuckDB warehouse
+warehouse/*
+!warehouse/.gitkeep
+
+# ML artifacts
+ml/artifacts/*
+!ml/artifacts/.gitkeep
+
+# Spark checkpoints
+spark/checkpoints/*
+!spark/checkpoints/.gitkeep
+
+# Kaggle credentials
+kaggle.json
+
+# Notebooks
+.ipynb_checkpoints/
+
+# dbt
+target/
+dbt_packages/
