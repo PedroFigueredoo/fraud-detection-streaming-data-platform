@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BAF account application replay v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "schema_version",
+    "replay_id",
+    "source_row",
+    "replayed_at_ms",
+    "dataset_variant",
+    "month",
+    "customer_age",
+    "employment_status",
+    "income",
+    "fraud_bool"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "enum": [
+        1
+      ]
+    },
+    "replay_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_row": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "replayed_at_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "dataset_variant": {
+      "type": "string",
+      "enum": [
+        "base"
+      ]
+    },
+    "month": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 7
+    },
+    "customer_age": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "employment_status": {
+      "type": "string",
+      "minLength": 1
+    },
+    "income": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "fraud_bool": {
+      "type": "integer",
+      "enum": [
+        0,
+        1
+      ]
+    }
+  }
+}

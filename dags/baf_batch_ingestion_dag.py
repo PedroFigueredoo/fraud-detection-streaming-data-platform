@@ -26,4 +26,17 @@ with DAG(
         ),
     )
 
-    load_base_dataset
+    validate_base_dataset = BashOperator(
+        task_id="validate_base_dataset",
+        bash_command=(
+            "cd /opt/airflow && "
+            "python -m ingestion.validate_ingestion "
+            "--database /opt/airflow/warehouse/fraud.duckdb "
+            "--table raw.raw_baf_applications "
+            "--expected-rows 1000000 "
+            "--expected-min-month 0 "
+            "--expected-max-month 7"
+        ),
+    )
+
+    load_base_dataset >> validate_base_dataset

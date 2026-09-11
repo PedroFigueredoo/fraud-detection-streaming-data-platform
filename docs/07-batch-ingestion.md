@@ -48,12 +48,12 @@ The script:
 
 * reads the BAF CSV file;
 * creates the `raw` schema if it does not exist;
-* creates the target raw table;
+* loads a staging table and validates its schema before publishing it;
 * adds `dataset_variant`;
 * adds `ingested_at`;
 * validates required columns;
 * prints a dataset summary;
-* prints fraud distribution by month.
+* replaces the target table atomically when `--replace` is used.
 
 ## Command
 
@@ -62,6 +62,21 @@ The ingestion can be executed inside the Airflow container:
 ```bash
 docker compose exec airflow-webserver python /opt/airflow/ingestion/load_baf_to_duckdb.py --replace
 ```
+
+Convenience commands:
+
+```bash
+make ingest-base
+make validate-base
+```
+
+The manual Airflow DAG `baf_batch_ingestion` runs the load first and then checks:
+
+* exact row count for the Base dataset;
+* required source and metadata columns;
+* nulls in required fields;
+* valid binary fraud labels;
+* expected month range.
 
 ## Validation Result
 
@@ -93,7 +108,6 @@ This keeps the repository lightweight and reproducible while avoiding large data
 
 ## Next Steps
 
-* Create an Airflow DAG to execute the ingestion script.
-* Add explicit data quality checks.
-* Validate row counts and fraud distribution after each ingestion.
+* Partition the batch output by month when a downstream consumer requires it.
+* Add an ingestion run audit table before supporting incremental loads.
 * Later, extend the ingestion to support additional BAF variants.

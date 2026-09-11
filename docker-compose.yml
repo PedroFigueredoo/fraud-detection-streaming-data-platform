@@ -21,6 +21,8 @@ x-airflow-common: &airflow-common
     - ./processing:/opt/airflow/processing
     - ./ml:/opt/airflow/ml
     - ./monitoring:/opt/airflow/monitoring
+    - ./tests:/opt/airflow/project-tests:ro
+    - ./kafka:/opt/airflow/replay:ro
   user: "${AIRFLOW_UID:-50000}:0"
   networks:
     - fraud_net
@@ -139,6 +141,7 @@ services:
       - ./spark/jobs:/opt/spark/jobs
       - ./spark/checkpoints:/opt/spark/checkpoints
       - ./processing:/opt/spark/processing
+      - ./kafka:/opt/spark/replay:ro
       - ./ml:/opt/spark/ml
     networks:
       - fraud_net
@@ -163,6 +166,7 @@ services:
       - ./spark/jobs:/opt/spark/jobs
       - ./spark/checkpoints:/opt/spark/checkpoints
       - ./processing:/opt/spark/processing
+      - ./kafka:/opt/spark/replay:ro
       - ./ml:/opt/spark/ml
     networks:
       - fraud_net

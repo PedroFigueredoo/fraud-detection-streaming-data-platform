@@ -16,6 +16,9 @@ data/raw/
 
 Current local files:
 
+`data/raw/` is the canonical pipeline input. Kaggle caches are acquisition
+sources only; place downloaded files here before running batch or replay.
+
 ```text
 Base.csv
 Variant I.csv
