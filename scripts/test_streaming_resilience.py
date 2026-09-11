@@ -1,5 +1,6 @@
 """Run a bounded real-cluster resilience test; preserves all test artifacts."""
 import json
+import argparse
 import subprocess
 import tempfile
 import time
@@ -15,9 +16,24 @@ def run(*args):
 
 
 def main():
-    name = 'resilience-' + uuid4().hex[:12]
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--during-batch', action='store_true')
+    fault = parser.parse_args().during_batch
+    name = ('fault-' if fault else 'resilience-') + uuid4().hex[:12]
     checkpoint = '/opt/spark/checkpoints/' + name
     output = '/opt/spark/data/streaming/' + name
+    gate = ROOT / 'spark/checkpoints' / (name + '-barrier')
+
+    def audit():
+        cp = ROOT / 'spark/checkpoints' / name
+        sink = ROOT / 'data/streaming' / name
+        snapshot = {}
+        for sub in ('offsets', 'commits'):
+            snapshot[sub] = {p.name: p.read_text() for p in (cp / sub).glob('*') if p.name.isdigit()}
+        snapshot['metadata'] = (cp / 'metadata').read_text() if (cp / 'metadata').exists() else None
+        snapshot['sink_commits'] = {p.name: p.read_text() for p in (sink / '_spark_metadata').glob('*') if p.name.isdigit()}
+        snapshot['physical_files'] = [str(p.relative_to(sink)) for p in sink.rglob('*') if p.is_file()]
+        return snapshot
     logdir = Path(tempfile.mkdtemp(prefix='baf-resilience-'))
     print('Test ID:', name, 'logs:', logdir, flush=True)
     run('docker', 'compose', 'exec', '-T', 'kafka', 'kafka-topics',
@@ -35,6 +51,8 @@ def main():
                 '--output', output, '--checkpoint', checkpoint]
         if available:
             args.append('--available-now')
+        if fault:
+            args.extend(['--test-block-file', '/opt/spark/checkpoints/' + gate.name])
         return subprocess.Popen(args, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
 
     def kill_driver():
@@ -65,6 +83,13 @@ print('SIGKILL driver PID', matches[0])
                 if first.poll() is not None:
                     raise RuntimeError('Consumer exited; inspect ' + str(logdir))
                 commits = ROOT / 'spark/checkpoints' / name / 'commits'
+                if fault and gate.with_suffix('.entered').exists():
+                    before = audit()
+                    assert '0' in before['offsets'] and not before['commits']
+                    assert not before['sink_commits']
+                    (logdir / 'before.json').write_text(json.dumps(before, indent=2))
+                    print('Executor barrier entered; offsets/0 exists; no checkpoint or sink commit', flush=True)
+                    break
                 if commits.exists() and any(p.name.isdigit() for p in commits.iterdir()):
                     try:
                         print(probe('check', 16), flush=True)
@@ -78,8 +103,13 @@ print('SIGKILL driver PID', matches[0])
             if first.poll() is None:
                 print(kill_driver(), flush=True)
             first.wait(timeout=30)
-    print('Consumer interrupted after committed partial workload', flush=True)
-    print(probe('publish', 'second'), flush=True)
+    if fault:
+        # Separate test-control file, never a checkpoint edit.
+        gate.with_suffix('.release').touch()
+        print('Consumer killed during batch 0; barrier released for identical restart', flush=True)
+    else:
+        print('Consumer interrupted after committed partial workload', flush=True)
+        print(probe('publish', 'second'), flush=True)
     with (logdir / 'restart.log').open('w') as log:
         second = start(log, available=True)
         try:
@@ -89,7 +119,15 @@ print('SIGKILL driver PID', matches[0])
             if second.poll() is None:
                 print(kill_driver(), flush=True)
                 second.wait(timeout=30)
-    print(probe('check', 21), flush=True)
+    print(probe('check', 16 if fault else 21), flush=True)
+    if fault:
+        after = audit()
+        assert after['metadata'] == before['metadata']
+        assert after['offsets']['0'] == before['offsets']['0']
+        assert '0' in after['commits'] and '0' in after['sink_commits']
+        (logdir / 'after.json').write_text(json.dumps(after, indent=2))
+        print(run('docker', 'compose', 'exec', '-T', 'airflow-webserver', 'python',
+                  '/opt/airflow/project-tests/audit_parquet_sink.py', name), flush=True)
     print(json.dumps({'test_id': name, 'checkpoint': checkpoint, 'output': output,
                       'result': 'PASS', 'logs': str(logdir)}), flush=True)
 

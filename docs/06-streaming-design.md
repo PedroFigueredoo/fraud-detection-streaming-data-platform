@@ -129,4 +129,44 @@ Artifacts and logs are retained; nothing is deleted by the runner.
 This demonstrates recovery after an abrupt stop between committed microbatches,
 not during an in-flight write. It does not guarantee global exactly-once or
 deduplicate producer replays. Keep one active writer per output/checkpoint pair.
+
+## Controlled In-flight Microbatch Failure
+
+```bash
+python3 scripts/test_streaming_resilience.py --during-batch
+```
+
+This test-only mode supplies `--test-block-file` to the job. Without that option,
+the executor has no barrier or artificial delay. With it, the validation UDF
+creates an external `.entered` marker and waits (at most 120 seconds) for a
+`.release` marker. Both are separate from the query checkpoint directory.
+The runner verifies batch 0's offset log exists with neither checkpoint commit
+nor file sink commit, then SIGKILLs only the matched test driver. It releases the
+barrier and restarts the same processing job on the same output/checkpoint,
+using `--available-now` to terminate the recovery run after it catches up.
+No checkpoint files are manually edited.
+
+Observed run `fault-c331bc65eeb9`: 16 acknowledged messages, offset endpoints
+partition 0=4, 1=6, 2=6. At interruption the UDF was executing, `offsets/0`
+existed, both commit logs were empty, and no output files existed yet.
+On restart the query ID and offsets/0 were unchanged, batch 0 was processed
+again and both `commits/0` and `_spark_metadata/0` were created.
+Final audit: 16 rows, 10 valid, 6 rejected, 16 unique Kafka coordinates,
+15 distinct non-null event IDs (malformed JSON has none).
+Six physical Parquet files matched the six manifest entries, with readable
+footers and no observed orphan or temporary files. Snapshots are retained in
+the runner's printed log directory (`before.json`, `after.json`).
+
+Kafka offsets identify the source range; the checkpoint records planned ranges
+and completed microbatches. The Parquet sink manifest identifies committed files.
+The test audits both the manifest and physical files, rather than assuming every
+file found by a directory scan is committed. This small test does not exercise
+log compaction or provide an orphan cleanup system.
+
+The failure was during processing, before files were written; it does not establish
+behavior for a kill halfway through a Parquet write or all possible crash windows.
+No loss or duplication was observed for the tested source coordinates. This is
+not a global exactly-once guarantee or deduplication of repeated producer sends.
+The streaming foundation milestone is complete; next is dbt data modeling and
+explicit definitions of the data layers.
     

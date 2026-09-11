@@ -119,3 +119,22 @@ partitioning remains pending until a concrete downstream requirement exists.
   this evidence covers an abrupt stop between commits, not an in-flight write.
 - Next milestone: failure injection during an active microbatch and validation
   using the file sink commit log, including possible orphan files.
+
+## Streaming Fault Tolerance - 2026-09-10
+
+- Added an opt-in test barrier inside executor validation; normal execution has
+  no wait. Test-control markers are outside the query checkpoint directory.
+- Run `fault-c331bc65eeb9`: 16 messages, interrupted via driver SIGKILL during
+  batch 0 processing. Executor marker + offsets/0 proved the batch had started;
+  no checkpoint or sink commit existed. No output files existed at this point.
+- Restart of the same job kept query ID and offsets/0, reprocessed batch 0, and created
+  checkpoint commits/0 and sink _spark_metadata/0.
+- Final: 10 valid + 6 rejected, 16 unique source coordinates, 15 distinct non-null
+  event IDs. Six readable Parquet files matched the manifest exactly; no observed
+  orphan, temporary file, loss or duplicate source coordinate.
+- Regression unit tests: 14 passed. Evidence is scoped to a processing-time crash
+  before file creation; it does not establish a global exactly-once guarantee.
+- Real regression without the barrier (`resilience-517893f87440`) also passed:
+  21 final records, 15 valid + 6 rejected, 21 unique source coordinates.
+- Foundation/resilience work concluded. Next milestone: Data Modeling with dbt
+  and explicit definitions of the data layers.

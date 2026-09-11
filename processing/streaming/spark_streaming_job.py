@@ -14,6 +14,7 @@ def main():
     parser.add_argument("--output", default="/opt/spark/data/streaming/account_applications")
     parser.add_argument("--checkpoint", default="/opt/spark/checkpoints/account_applications")
     parser.add_argument("--available-now", action="store_true")
+    parser.add_argument("--test-block-file", help="TEST ONLY: external executor barrier; disabled by default")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
     contract = load_contract("/opt/spark/replay/schemas/account_application_v1.json")
@@ -22,7 +23,20 @@ def main():
                            for name, rule in contract["properties"].items()])
     spark = SparkSession.builder.appName("baf-account-applications-v1").getOrCreate()
     spark.sparkContext.setLogLevel("WARN")
-    errors = F.udf(lambda raw: validation_errors(raw, contract), T.ArrayType(T.StringType()))
+    def inspect_payload(payload):
+        if args.test_block_file:
+            import time
+            from pathlib import Path
+            gate = Path(args.test_block_file)
+            gate.with_suffix('.entered').touch()
+            deadline = time.monotonic() + 120
+            while not gate.with_suffix('.release').exists():
+                if time.monotonic() > deadline:
+                    raise TimeoutError('Test barrier timed out')
+                time.sleep(0.2)
+        return validation_errors(payload, contract)
+
+    errors = F.udf(inspect_payload, T.ArrayType(T.StringType()))
     raw = (spark.readStream.format("kafka")
            .option("kafka.bootstrap.servers", args.bootstrap_server)
            .option("subscribe", args.topic).option("startingOffsets", "earliest")
