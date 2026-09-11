@@ -1,51 +1,79 @@
-## Dataset Name
-
-BAF - Bank Account Fraud Dataset
+## BAF - Bank Account Fraud Dataset
 
 ## Source
 
-Feedzai / NeurIPS 2022.
+This project uses the Bank Account Fraud Dataset (BAF), a public and privacy-preserving dataset designed for fraud detection experiments.
 
-## Why this dataset?
+The dataset is used only for educational and portfolio purposes. No real customer, banking, internal company or sensitive production data is used in this project.
 
-The BAF dataset is useful for this project because it includes:
+## Local Files
 
-- realistic bank account opening fraud patterns;
-- temporal behavior through the `month` column;
-- strong class imbalance;
-- protected attributes for fairness analysis;
-- multiple dataset variants for bias and drift evaluation.
+The raw dataset files are stored locally under:
 
-## Main Target Column
+```text
+data/raw/
+```
 
-| Column | Description |
-|---|---|
-| `fraud_bool` | Indicates whether the application is fraudulent |
+Current local files:
 
-## Temporal Column
+`data/raw/` is the canonical pipeline input. Kaggle caches are acquisition
+sources only; place downloaded files here before running batch or replay.
 
-| Column | Description |
-|---|---|
-| `month` | Used for temporal split and drift analysis |
+```text
+Base.csv
+Variant I.csv
+Variant II.csv
+Variant III.csv
+Variant IV.csv
+Variant V.csv
+```
 
-## Protected / Sensitive Attributes
+These files are intentionally ignored by Git and are not pushed to GitHub.
 
-| Column | Usage |
-|---|---|
-| `customer_age` | Fairness and bias analysis |
-| `employment_status` | Distribution and monitoring |
-| `income` | Distribution and fairness monitoring |
+## Initial Dataset Used
 
-## Important Notes
+The first batch ingestion step uses:
 
-The model should not be evaluated using a random split only. Since the dataset contains temporal behavior, the project uses a temporal split:
+```text
+data/raw/Base.csv
+```
 
-- months 0-5 for training;
-- months 6-11 for testing.
+Initial validation results:
 
-## Data Privacy Note
+| Metric       |     Value |
+| ------------ | --------: |
+| Total rows   | 1,000,000 |
+| Total months |         8 |
+| Month range  |    0 to 7 |
+| Fraud rows   |    11,029 |
+| Fraud rate   |   1.1029% |
 
-This project uses only public and privacy-preserving datasets.  
-No real customer data, internal company data or sensitive banking information is used.
+## Fraud Rate by Month
 
-The streaming flow is simulated by replaying public dataset rows as events.
+| Month | Total Rows | Fraud Rows | Fraud Rate |
+| ----: | ---------: | ---------: | ---------: |
+|     0 |    132,440 |      1,500 |    1.1326% |
+|     1 |    127,620 |      1,198 |    0.9387% |
+|     2 |    136,979 |      1,198 |    0.8746% |
+|     3 |    150,936 |      1,392 |    0.9222% |
+|     4 |    127,691 |      1,452 |    1.1371% |
+|     5 |    119,323 |      1,411 |    1.1825% |
+|     6 |    108,168 |      1,450 |    1.3405% |
+|     7 |     96,843 |      1,428 |    1.4746% |
+
+## Temporal Split Note
+
+The original project plan considered a temporal split using months 0–5 for training and 6–11 for testing. However, the local `Base.csv` file currently available contains months 0–7.
+
+For the Base dataset, the initial temporal split will therefore be:
+
+```text
+Train: months 0–5
+Test: months 6–7
+```
+
+This decision avoids random shuffling and reduces temporal leakage.
+
+## Privacy Note
+
+The dataset files are not versioned in Git because they are large raw data files. Only ingestion code, documentation and reproducible pipeline logic are versioned.

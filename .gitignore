@@ -23,6 +23,7 @@ logs/*
 !logs/.gitkeep
 
 # Local data
+data/streaming/
 data/raw/*
 data/processed/*
 data/sample/*

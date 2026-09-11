@@ -87,4 +87,22 @@ make list-topics
 ```bash
 docker compose ps
 ```
+
+### Run Batch Ingestion
+
+With `data/raw/Base.csv` available locally:
+
+```bash
+make ingest-base
+make validate-base
+```
+
+The same flow is available in Airflow through the manual DAG
+`baf_batch_ingestion`.
+
+### Run Focused Tests
+
+```bash
+make test
+```
 # fraud-detection-streaming-data-platform
